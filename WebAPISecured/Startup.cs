@@ -31,39 +31,39 @@ namespace WebAPISecured
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            // TODO: flytta till appsettings.json
-            var key = Encoding.ASCII.GetBytes("MIN_STORA_HEMLIGA_KRYPTERINGSNYCKEL_iyufgTREDAS9876)=(/&");
-
             services.AddAuthentication(x =>
             {
                 x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            }).AddJwtBearer(x =>
-            {
-                x.Events = new JwtBearerEvents
+            })
+                .AddJwtBearer(x =>
                 {
-                    OnTokenValidated = context =>
+                    x.Events = new JwtBearerEvents
                     {
-                        // WebAPISecuredUser
-                        var userMachine = context.HttpContext.RequestServices.GetRequiredService<UserManager<WebAPISecuredUser>>();
-                        var user = userMachine.GetUserAsync(context.HttpContext.User);
-                        if (user == null)
+                        OnTokenValidated = context =>
                         {
-                            context.Fail("Unauthorized");
+                            // WebAPISecuredUser
+                            var userMachine = context.HttpContext.RequestServices.GetRequiredService<UserManager<WebAPISecuredUser>>();
+                            var user = userMachine.GetUserAsync(context.HttpContext.User);
+
+                            if (user == null)
+                            {
+                                context.Fail("Unauthorized");
+                            }
+                            return Task.CompletedTask;
                         }
-                        return Task.CompletedTask;
-                    }
-                };
-                x.RequireHttpsMetadata = false;
-                x.SaveToken = true;
-                x.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),   // VÅR key FRÅN HÖGRE UPP
-                    ValidateIssuer = false,
-                    ValidateAudience = false
-                };
-            });
+                    };
+                    x.RequireHttpsMetadata = false;
+                    x.SaveToken = true;
+                    x.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["Tokens:Key"])),
+                        ValidIssuer = Configuration["Tokens:Issuer"],
+                        ValidAudience = Configuration["Tokens:Issuer"],
+                        ClockSkew = TimeSpan.Zero // remove delay of token when expire
+                    };
+                });
 
             services.AddControllers();
             services.AddSwaggerGen(c =>
